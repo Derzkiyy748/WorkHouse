@@ -9,17 +9,19 @@ from aiogram import types, Router, F, Bot
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
-from keyboards.inline.menu import (admin_repl, menu_keyboard, menu_profile, 
+from keyboards.inline.menu import (admin_repl, finish_task_user, menu_keyboard, menu_profile, 
                                    menu_o_nas, menu_rules, menu_new_task_1, 
                                    menu_new_task_2, cancel_task, accept_work, 
-                                   menu_profile_adm, get_chat, menu_myorders)
+                                   get_chat, activity_task_user,
+                                   user_task_)
 
 from database.requiests import (registration_user, get_soglashenie, set_soglashenie, 
-                                get_user, add_task, get_task, check_worker, 
-                                get_chats, edit_chats, get_tasks, edits_task_)
+                                get_user, add_task, activ_get_task, finish_get_task,
+                                check_worker, get_chats, edit_chats, get_tasks, edits_task_,
+                                get_task)
 
 from misc.message import (
-                            open_task, new_application, desc_mytask
+                            open_task, new_application, desc_mytask, main_text
                         )
 from states.state import New_task
 from handlers.admin import yes_task
@@ -71,8 +73,8 @@ async def start(message: Message, bot: Bot, state: FSMContext):
             user_id_work = message.from_user.id
             await bot.send_photo(
                                 chat_id=message.chat.id,
-                                photo=FSInputFile("bot/images/kross.jpg"),
-                                caption="Меню: ",
+                                photo=FSInputFile("bot/images/main.jpg"),
+                                caption=main_text(),
                                 reply_markup=await menu_keyboard(message.chat.id, user_id_work)
             )
 
@@ -91,7 +93,7 @@ async def true_rules(call: CallbackQuery, bot: Bot):
     await bot.send_photo(
                         chat_id=call.message.chat.id,
                         photo=FSInputFile("bot/images/kross.jpg"),
-                        caption="Меню: ",
+                        caption=main_text(),
                         reply_markup=await menu_keyboard(call.message.chat.id, call.from_user.id)
     )
 
@@ -109,7 +111,7 @@ async def profile(call: CallbackQuery, bot: Bot):
                             media=FSInputFile(path="bot/images/kross.jpg"),
                             caption="Профиль: "
                         ),
-                        reply_markup=await menu_profile_adm(call.message.chat.id)
+                        reply_markup=await menu_profile(call.message.chat.id)
                         )
     else:
                     
@@ -126,7 +128,7 @@ async def profile(call: CallbackQuery, bot: Bot):
 
 @router.callback_query(F.data == "back_prof")  
 async def back_prof(call: CallbackQuery, bot: Bot):
-    await profile(call, bot)
+    await myorders(call, bot)
 
  
 @router.callback_query(F.data == "back")
@@ -136,8 +138,8 @@ async def back(call: CallbackQuery, bot: Bot):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         media=InputMediaPhoto(
-            media=FSInputFile(path="bot/images/kross.jpg"),
-            caption="Меню: "
+            media=FSInputFile(path="bot/images/main.jpg"),
+            caption=main_text()
         ),
         reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id)
     )
@@ -187,26 +189,59 @@ async def cancel_new_tas(call: CallbackQuery, bot: Bot, state: FSMContext):
 
     await bot.send_photo(
                         chat_id=call.message.chat.id,
-                        photo=FSInputFile("bot/images/kross.jpg"),
-                        caption="Меню: ",
+                        photo=FSInputFile("bot/images/main.jpg"),
+                        caption=main_text(),
                         reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id) 
                     )
     
     await state.clear()
 
 
-@router.callback_query(F.data.startswith("myorders_"))
+@router.callback_query(F.data.startswith("myordersuser_"))
 async def myorders(call: CallbackQuery, bot: Bot):
 
     id_ = call.data.split("_")[1]
 
-    work = await get_tasks(id_)
+    await call.message.delete()
+
+    await bot.send_photo(   
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption=f"Выберите тип заказа: ",
+                             reply_markup=await user_task_(id_)
+                        )
+    
+
+@router.callback_query(F.data.startswith("finishtasksuser_"))
+async def finishtask(call: CallbackQuery, bot: Bot):
+
+    id_ = call.data.split("_")[1]
+
+    task = await finish_get_task(id_)
 
     await call.message.delete()
 
-    await call.message.answer(
-                             text=f"📝Мои заказы:",
-                             reply_markup=await menu_myorders(work, 0)
+    await bot.send_photo(
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption='Завершенные задачи: ',
+                             reply_markup=await finish_task_user(task, 0)
+                        )
+    
+@router.callback_query(F.data.startswith("activetasksuser_"))
+async def activetask(call: CallbackQuery, bot: Bot):
+
+    id_ = call.data.split("_")[1]
+
+    task = await activ_get_task(id_)
+
+    await call.message.delete()
+
+    await bot.send_photo(
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption='Активные задачи: ',
+                             reply_markup=await activity_task_user(task, 0)
                         )
 
     
@@ -219,7 +254,7 @@ async def next_page(call: CallbackQuery, bot: Bot):
     if len(work[page:]) == 0:
         await call.answer('Это последняя страница', show_alert=True)
     else:
-        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=menu_myorders(work, page))
+        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=activity_task_user(work, page))
 
 @router.callback_query(F.data.startswith("prev_"))
 async def prev_page(call: CallbackQuery, bot: Bot):
@@ -230,7 +265,7 @@ async def prev_page(call: CallbackQuery, bot: Bot):
     if len(work[page:page-6]) == 0:
         await call.answer('Это первая страница', show_alert=True)
     else:
-        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=menu_myorders(work, page))
+        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=activity_task_user(work, page))
 
 @router.callback_query(F.data.startswith("mytask_"))
 async def mytask__1(call: CallbackQuery, bot: Bot):
@@ -251,6 +286,11 @@ async def mytask__1(call: CallbackQuery, bot: Bot):
                              reply_markup= kb.as_markup(),
                              parse_mode='html'
                         )
+    
+@router.callback_query(F.data == "profile_back")
+async def profile_back(call: CallbackQuery, bot: Bot):
+    await profile(call, bot)
+
 
 @router.callback_query(F.data == "new_task")
 

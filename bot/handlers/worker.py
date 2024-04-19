@@ -7,12 +7,18 @@ from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
-from keyboards.inline.worker import main_worker, profile_worker, menu_myorders_work
+from keyboards.inline.worker import (main_worker, profile_worker,
+                                     finish_task_worker, worker_task,
+                                     activity_task_worker)
+
 from keyboards.inline.menu import accept_user
 from misc.message import open_task_user, desc_mytask_worker
 from aiogram import Bot
 from aiogram.types.input_file import FSInputFile
-from database.requiests import get_task, get_task_work, get_worker, get_group_work, get_tasks_work
+from database.requiests import (get_task, finish_task_work,
+                                get_worker, get_group_work,
+                                get_tasks_work, activity_task_work)
+
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from fliters.Fliter import Worker
@@ -50,6 +56,9 @@ async def profile_worker_1(call: CallbackQuery, bot: Bot):
                         )
     
 
+@router_worker.callback_query(F.data == 'profile_back_work')
+async def profile_back_work(call: CallbackQuery, bot: Bot):
+    await profile_worker_1(call, bot)
 
 @router_worker.callback_query(F.data == 'main_worker')
 async def main_worker_1(call: CallbackQuery, bot: Bot):
@@ -99,22 +108,56 @@ async def main_worker_back(call: CallbackQuery, bot: Bot):
     
 
 @router_worker.callback_query(F.data.startswith("mytasks_"))
-async def myorders(call: CallbackQuery, bot: Bot):
+async def myorders_worker(call: CallbackQuery, bot: Bot):
 
     id_ = call.data.split("_")[1]
 
-    work = await get_task_work(id_)
+    await call.message.delete()
+
+    await bot.send_photo(   
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption=f"Выберите тип заказа: ",
+                             reply_markup=await worker_task(id_)
+                        )
+    
+@router_worker.callback_query(F.data.startswith("finishtasksworker_"))
+async def finishtasks_worker(call: CallbackQuery, bot: Bot):
+    id_ = call.data.split("_")[1]
+
+    task = await finish_task_work(id_)
 
     await call.message.delete()
 
-    await call.message.answer(
-                             text=f"📝Мои заказы:",
-                             reply_markup=await menu_myorders_work(work, 0)
+    await bot.send_photo(
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption=f"Завершенные заказы",
+                             reply_markup=await finish_task_worker(task, 0)
                         )
     
+@router_worker.callback_query(F.data.startswith("activetasksworker_"))
+async def activetasks_worker(call: CallbackQuery, bot: Bot):
+    id_ = call.data.split("_")[1]
 
-@router_worker.callback_query(F.data.startswith("mytaskworker_"))
-async def mytask__1(call: CallbackQuery, bot: Bot):
+    task = await activity_task_work(id_)
+
+    await call.message.delete()
+
+    await bot.send_photo(
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption=f"Активные заказы",
+                             reply_markup=await activity_task_worker(task, 0)
+                        )
+    
+@router_worker.callback_query(F.data == "back_prof_worker")
+async def back_prof_worker(call: CallbackQuery, bot: Bot):
+    await myorders_worker(call, bot)
+    
+
+@router_worker.callback_query(F.data.startswith("finmytaskworker_"))
+async def mytask_worker_1(call: CallbackQuery, bot: Bot):
 
     id_ = call.data.split("_")[1]
 
@@ -127,7 +170,7 @@ async def mytask__1(call: CallbackQuery, bot: Bot):
 
     kb = InlineKeyboardBuilder()
     kb.button(text='Чат заказа', url=group.link)
-    kb.button(text="<- Назад", callback_data=f"back_prof")
+    kb.button(text="<- Назад", callback_data=f"back_prof_worker")
 
 
     await bot.send_photo(   

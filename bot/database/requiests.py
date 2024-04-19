@@ -89,7 +89,7 @@ async def add_task(post_id: int, user_id: int, data: dict):
             user_id_task=user_id,
             worker_id_task='no',
             time=time.strftime("%Y-%m-%d|%H:%M:%S"),
-            status='check',
+            status='проверка',
             category=data['task_1'],
             podcategory=data['task_2'],
             min_tz=data['min_tz'],
@@ -105,7 +105,7 @@ async def full_add_task(task_id: int):
         await session.execute(
                                 update(Task)
                                 .where(Task.task_id == task_id)
-                                .values(status='activity')
+                                .values(status='активный')
                             )
         await session.commit()
 
@@ -136,7 +136,7 @@ async def get_task(task_id: int):
     async with async_session() as session:
         res = await session.execute(
                                     select(Task)
-                                    .where(Task.task_id == task_id)
+                                    .where(Task.task_id == task_id,)
                                     .options(selectinload('*')))
         task = res.scalar()
 
@@ -144,12 +144,30 @@ async def get_task(task_id: int):
     
 async def get_tasks(user_id: int):
     async with async_session() as session:
+        res = await session.execute(
+            select(Task).where(Task.user_id_task == user_id)
+        )
+        tasks = res.scalars().all()
+        return tasks
+
+async def activ_get_task(user_id: int):
+    async with async_session() as session:
         res = await session.scalars(
                                     select(Task)
-                                    .where(Task.user_id_task == user_id)
-                                    )
+                                    .where(Task.user_id_task == user_id,
+                                           Task.status=='активный')
+                                        )
+
         return res
     
+async def finish_get_task(user_id: int):
+    async with async_session() as session:
+        res = await session.scalars(
+                                    select(Task)
+                                    .where(Task.user_id_task == user_id,
+                                           Task.status=='завершенный')
+                                    )
+        return res
 
 async def get_worker(worker_id: int):
     async with async_session() as session:
@@ -204,11 +222,22 @@ async def get_chatts(id: int):
             
         return ch
     
-async def get_task_work(id_: int):
+async def finish_task_work(id_: int):
     async with async_session() as session:
         res = await session.scalars(
                 select(Task)
-                .where(Task.worker_id_task == id_)
+                .where(Task.worker_id_task == id_,
+                       Task.status == 'завершенный')
+                )
+
+        return res
+    
+async def activity_task_work(id_: int):
+    async with async_session() as session:
+        res = await session.scalars(
+                select(Task)
+                .where(Task.worker_id_task == id_,
+                       Task.status == 'активный')
                 )
 
         return res

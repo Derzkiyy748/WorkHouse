@@ -39,7 +39,7 @@ async def menu_keyboard(message_id: int, worker_id: int):
 async def menu_profile(user_id):
     kb = [
         [
-            InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myorders_{user_id}"),
+            InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myordersuser_{user_id}"),
         ],
         [
             InlineKeyboardButton(text="<- Назад", callback_data="back")
@@ -48,34 +48,35 @@ async def menu_profile(user_id):
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
-async def menu_profile_adm(user_id):
+
+async def user_task_(user_id):
     kb = [
         [
-            InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myorders_{user_id}"),
-        
-            InlineKeyboardButton(text="📩Мои чаты", callback_data=f"mychats_{user_id}")
+            InlineKeyboardButton(text='Завершенные', callback_data=f'finishtasksuser_{user_id}'),
+            InlineKeyboardButton(text='Активные', callback_data=f'activetasksuser_{user_id}')
         ],
         [
-            InlineKeyboardButton(text="Добавить чат", callback_data='add_chat')
-        ],
-        [
-            InlineKeyboardButton(text="<- Назад", callback_data="back")
+            InlineKeyboardButton(text='<- Назад', callback_data='main_worker')
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
 
-async def menu_myorders(data, page: int):
+async def finish_task_user(data, page: int):
     kb = InlineKeyboardBuilder()
-    # Convert SQLAlchemy result object to a list
     data_list = list(data)
+    if data_list == [] or None:
+        kb.row(InlineKeyboardButton(text='Заказов нет', callback_data='sklfjsda'))
+        kb.row(InlineKeyboardButton(text='<- Назад', callback_data='profile_back'))
+        return kb.as_markup()
+    
     
     start_index = page * 6
     end_index = min(start_index + 6, len(data_list))  # Ensure we don't exceed the length of the data
     
     for i in data_list[start_index:end_index]:
-        kb.add(InlineKeyboardButton(text=f'📚 {i.task_id} | {i.status}', callback_data=f'mytask_{i.task_id}'))
+        kb.add(InlineKeyboardButton(text=f'📚 {i.task_id} | {i.category}', callback_data=f'mytask_{i.task_id}'))
     
     # Add navigation buttons and page number
     kb.row(
@@ -83,7 +84,40 @@ async def menu_myorders(data, page: int):
         InlineKeyboardButton(text=f'{page + 1}/{(len(data_list) + 5) // 6}', callback_data='sklfjsda'),  # Assuming 6 tasks per page
         InlineKeyboardButton(text='->', callback_data=f'next_{page}')
     )
+    kb.row(
+        InlineKeyboardButton(text='<- Назад', callback_data='profile_back')
+    )
+    print(data_list)
+    print(data)
+    return kb.as_markup()
+
+
+async def activity_task_user(data, page: int):
+    kb = InlineKeyboardBuilder()
+    data_list = list(data)
+    if data_list == [] or None:
+        kb.row(InlineKeyboardButton(text='Заказов нет', callback_data='sklfjsda'))
+        kb.row(InlineKeyboardButton(text='<- Назад', callback_data='profile_back'))
+        return kb.as_markup()
     
+    
+    start_index = page * 6
+    end_index = min(start_index + 6, len(data_list))  # Ensure we don't exceed the length of the data
+    
+    for i in data_list[start_index:end_index]:
+        kb.add(InlineKeyboardButton(text=f'📚 {i.task_id} | {i.category}', callback_data=f'mytask_{i.task_id}'))
+    
+    # Add navigation buttons and page number
+    kb.row(
+        InlineKeyboardButton(text='<-', callback_data=f'prev_{page}'),
+        InlineKeyboardButton(text=f'{page + 1}/{(len(data_list) + 5) // 6}', callback_data='sklfjsda'),  # Assuming 6 tasks per page
+        InlineKeyboardButton(text='->', callback_data=f'next_{page}')
+    )
+    kb.row(
+        InlineKeyboardButton(text='<- Назад', callback_data='profile_back')
+    )
+    print(data_list)
+    print(data)
     return kb.as_markup()
 
 
@@ -201,15 +235,6 @@ async def accept_user(task_id, user_id, work_id):
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
-
-async def finish_addchat():
-    kb = [
-        [
-            KeyboardButton(text="Завершить")
-        ]
-    ]
-    keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-    return keyboard
 
 
 async def get_chat(chat_link):

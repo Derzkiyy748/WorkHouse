@@ -5,8 +5,9 @@ import config
 from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, InputMediaPhoto
-from keyboards.inline.menu import  cancel_task, accept, finish_addchat
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto, ReplyKeyboardRemove
+from keyboards.inline.menu import  cancel_task, accept
+from keyboards.inline.admin import main_menu_admin, finish_addchat
 from aiogram import Bot
 from aiogram.types.input_file import FSInputFile
 from database.requiests import full_add_task, get_task, delete_task, add_chat
@@ -21,6 +22,18 @@ from states.state import AddChats
 
 router_admin = Router()
 
+
+@router_admin.callback_query(F.data == 'admin')
+async def admin(call: CallbackQuery, bot: Bot):
+    await bot.edit_message_media(
+                        chat_id=call.message.chat.id,
+                        message_id=call.message.message_id,
+                        media=InputMediaPhoto(
+                            media=FSInputFile(path="bot/images/kross.jpg"),
+                            caption="Админ-панель"
+                        ),
+                        reply_markup= await main_menu_admin()
+                    )
 
 @router_admin.callback_query(F.data.startswith("yestask_"), Admin())
 async def yes_task(call: CallbackQuery, bot: Bot):
@@ -68,6 +81,12 @@ async def add_chat_1(call: CallbackQuery, state: FSMContext):
 
 @router_admin.message(AddChats.add_chats)
 async def add_chat_2(message: Message, state: FSMContext):
+
+    if message.text == "Отмена":
+        await message.answer(text="Вы отменили загрузку чатов", reply_markup=ReplyKeyboardRemove())
+        await state.clear()
+        return
+
     dat = message.text.split("|")
     id_ = dat[0]
     link = dat[1]
@@ -75,10 +94,12 @@ async def add_chat_2(message: Message, state: FSMContext):
     await message.answer(text="Чат добавлен")
     return
 
-@router_admin.message(F.text == 'finish')
+@router_admin.message(F.text == 'Завершить')
 async def finish_addchat_1(message: Message, state: FSMContext):
-    await message.answer(text="Загрузка чатов завершена!")
+    await message.answer(text="Загрузка чатов завершена!", reply_markup=ReplyKeyboardRemove())
     await state.clear()
+
+
 
 
 
