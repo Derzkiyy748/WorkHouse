@@ -34,7 +34,7 @@ class User(Base):
 
 class Task(Base):
     __tablename__ = "task"
-    task_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(primary_key=True)
     user_id_task = mapped_column(String(30))
     worker_id_task: Mapped[int] = mapped_column(default=0)
     time: Mapped[int] = mapped_column(default=0)
@@ -48,13 +48,25 @@ class Task(Base):
 
 class Group(Base):
     __tablename__ = "group"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    group_id: Mapped[int] = mapped_column(primary_key=True)
-    group_name: Mapped[str] = mapped_column()
-    group_user_id: Mapped[str] = mapped_column()
-    group_worker_id: Mapped[str] = mapped_column()
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    link: Mapped[str] = mapped_column()
+    group_id: Mapped[int] = mapped_column()
+    group_user_id: Mapped[str] = mapped_column(default=" ")
+    group_worker_id: Mapped[str] = mapped_column(default=" ")
     status: Mapped[str] = mapped_column(default="False")
-    tast_ids: Mapped[int] = mapped_column()
+    task_ids: Mapped[int] = mapped_column(default=0)
+
+class Worker(Base):
+    __tablename__ = "workers"
+    worker_id: Mapped[int] = mapped_column(primary_key=True)
+    worker_name: Mapped[str] = mapped_column()
+    worker_description: Mapped[str] = mapped_column()
+    worker_balance: Mapped[int] = mapped_column(default=0)
+    worker_stack: Mapped[str] = mapped_column(default=" ")
+    worker_status: Mapped[int] = mapped_column(default=0)
+    worker_rate: Mapped[int] = mapped_column(default=0)
+
+ 
 
 
     

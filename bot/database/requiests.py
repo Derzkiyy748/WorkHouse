@@ -3,8 +3,8 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import datetime as dt
 
-from database.module import User, async_session, Task
-from sqlalchemy import select, update
+from database.module import User, async_session, Task, Worker, Group
+from sqlalchemy import func, select, update, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import Tuple, Union
 
@@ -68,7 +68,7 @@ async def get_soglashenie(
             return True
         
 
-async def set_soglashenie(user_id):
+async def set_soglashenie(user_id: int) -> None:
     async with async_session() as session:
 
         await session.execute(
@@ -79,12 +79,13 @@ async def set_soglashenie(user_id):
         await session.commit()
 
 
-async def add_task(user_id, data):
+async def add_task(post_id: int, user_id: int, data: dict):
     async with async_session() as session:
         # Get current time
         time = dt.now()
 
         task = Task(
+            task_id = post_id,
             user_id_task=user_id,
             worker_id_task='no',
             time=time.strftime("%Y-%m-%d|%H:%M:%S"),
@@ -99,22 +100,160 @@ async def add_task(user_id, data):
         session.add(task)
         await session.commit()
 
-async def edit_task(user_id):
+async def full_add_task(task_id: int):
     async with async_session() as session:
         await session.execute(
                                 update(Task)
-                                .where(Task.user_id_task == user_id)
+                                .where(Task.task_id == task_id)
                                 .values(status='activity')
+                            )
+        await session.commit()
+
+async def edits_task_(task_id: int, worker_ids: int, chat_ids):
+    async with async_session() as session:
+        await session.execute(
+                                update(Task)
+                                .where(Task.task_id == task_id)
+                                .values(
+                                    worker_id_task=worker_ids,
+                                    chat_id=chat_ids
+                                )
+                            )
+        await session.commit()
+
+
+async def delete_task(task_id: int) -> None:
+    async with async_session() as session:
+        await session.execute(
+                                delete(Task)
+                                .where(Task.task_id == task_id)
+                                
                             )
         await session.commit()
         
 
-async def get_task(user_id: int):
+async def get_task(task_id: int):
     async with async_session() as session:
-        res = await session.execute(select(Task).where(Task.user_id_task == user_id).options(selectinload('*')))
+        res = await session.execute(
+                                    select(Task)
+                                    .where(Task.task_id == task_id)
+                                    .options(selectinload('*')))
         task = res.scalar()
 
         return task
+    
+async def get_tasks(user_id: int):
+    async with async_session() as session:
+        res = await session.scalars(
+                                    select(Task)
+                                    .where(Task.user_id_task == user_id)
+                                    )
+        return res
+    
+
+async def get_worker(worker_id: int):
+    async with async_session() as session:
+        res = await session.execute(
+                                    select(Worker)
+                                    .where(Worker.worker_id == worker_id)
+                                    .options(selectinload('*')))
+        worker = res.scalar()
+
+        return worker
+    
+async def check_worker(worker_id: int) -> bool:
+    async with async_session() as session:
+        res = await session.execute(
+            select(Worker)
+            .where(Worker.worker_id == worker_id)
+        )
+        return res.scalar()
+
+    
+async def add_chat(id_: int, link: str) -> None:
+    async with async_session() as session:
+        await session.execute(
+                    insert(Group)
+                    .values(group_id=id_, link=link)
+        )
+
+        await session.commit()
+
+
+
+async def get_chats() -> Group:
+    async with async_session() as session:
+        result = await session.execute(
+            select(Group)
+            .where(Group.status == 'False')  # Используем строку 'False' для сравнения
+            .order_by(func.random())
+            .limit(1)
+        )
+        chat = result.scalar_one_or_none()
+        return chat
+    
+
+async def get_chatts(id: int):
+    async with async_session() as session:
+        res = await session.execute(
+                select(Group)
+                .where(Group.group_id == id)
+                )
+        
+        ch = res.scalar()
+            
+        return ch
+    
+async def get_task_work(id_: int):
+    async with async_session() as session:
+        res = await session.scalars(
+                select(Task)
+                .where(Task.worker_id_task == id_)
+                )
+
+        return res
+    
+async def get_tasks_work(task_id: int):
+    async with async_session() as session:
+        res = await session.execute(
+                                    select(Task)
+                                    .where(Task.worker_id_task == task_id)
+                                    .options(selectinload('*')))
+        task = res.scalar()
+
+        return task
+    
+async def get_group_work(id_: int):
+    async with async_session() as session:
+        res = await session.execute(
+                                    select(Group)
+                                    .where(Group.task_ids == id_)
+                                    )
+        gr = res.scalar()
+        return gr
+
+    
+
+async def edit_chats(worker_id, user_id, task_id, link):
+    """
+    param: worker_id: айди воркера
+    param: user_id: айди юзера
+    param: task_id: айди задания
+    param: link: ссылка на чат
+    return: Обновляет чат на статус 'True'
+    """
+    async with async_session() as session:
+        await session.execute(
+                                update(Group)
+                                .where(Group.link== link)
+                                .values(status='True',
+                                        group_worker_id=worker_id,
+                                        group_user_id=user_id,
+                                        task_ids=task_id,
+                                        )
+                            )
+        await session.commit()
+
 
 
 

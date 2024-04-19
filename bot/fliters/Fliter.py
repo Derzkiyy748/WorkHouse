@@ -1,35 +1,29 @@
+import config
+
 from ctypes import Union
 from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery
+from database.requiests import check_worker
 
-class Filter(BaseFilter):
-    def __init__(self, chat: Union[str, list]):
-        self.chat = chat
 
-    async def __call__(self, obj) -> bool:
-        if isinstance(obj, Message):
-            return self.check_message(obj)
-        elif isinstance(obj, CallbackQuery):
-            return self.check_callback_query(obj)
-        else:
-            return False
 
-    def check_message(self, message: Message) -> bool:  
-        if isinstance(self.chat, str):
-            return message.chat.type == self.chat
-        else:
-            return message.chat.type in self.chat
-
-    def check_callback_query(self, call: CallbackQuery) -> bool:
-        if isinstance(self.chat, str):
-            return call.message.chat.type == self.chat
-        else:
-            return call.message.chat.type in self.chat
 #-------------------------------------------------------------#
 #-------------------------------------------------------------#
         
 
 class Worker(BaseFilter):
-    ...
+    async def __call__(self, update) -> bool:
+        user_id = update.message.chat.id
+        if await check_worker(user_id):
+            return True
+        return False
+    
+class Admin(BaseFilter):
+    async def __call__(self, update) -> bool:
+        user_id = update.message.chat.id
+        if user_id == config.ADMIN_ID[0]:
+            return True
+        return False
+    
 
  

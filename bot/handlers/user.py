@@ -2,25 +2,35 @@ import asyncio
 import time
 import config
 
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types.input_file import FSInputFile
 from aiogram.fsm.context import FSMContext
-from aiogram import types, Router, F
+from aiogram import types, Router, F, Bot
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
-from keyboards.inline.menu import admin_repl, menu_keyboard, menu_profile, menu_o_nas, menu_rules, menu_new_task_1, menu_new_task_2, cancel_task
-from aiogram import Bot
-from aiogram.types.input_file import FSInputFile
-from database.requiests import registration_user, get_soglashenie, set_soglashenie, get_user, add_task, get_task
+
+from keyboards.inline.menu import (admin_repl, menu_keyboard, menu_profile, 
+                                   menu_o_nas, menu_rules, menu_new_task_1, 
+                                   menu_new_task_2, cancel_task, accept_work, 
+                                   menu_profile_adm, get_chat, menu_myorders)
+
+from database.requiests import (registration_user, get_soglashenie, set_soglashenie, 
+                                get_user, add_task, get_task, check_worker, 
+                                get_chats, edit_chats, get_tasks, edits_task_)
+
+from misc.message import (
+                            open_task, new_application, desc_mytask
+                        )
 from states.state import New_task
 from handlers.admin import yes_task
 
 
 
-
-
 router = Router()
 
+
 @router.message(CommandStart())
-async def start(message: Message, bot: Bot):
+async def start(message: Message, bot: Bot, state: FSMContext):
     dict_user = {
                 'name': message.from_user.first_name,
                 'balance': 0,
@@ -33,23 +43,44 @@ async def start(message: Message, bot: Bot):
 
     reg = await get_user(message.from_user.id)
 
-    if reg is False:
-        await registration_user(message.from_user.id, dict_user)
+    task_id = message.text[7:]
+      # Получаем последнее слово из текста сообщения
 
-    soglas = await get_soglashenie(message.from_user.id)
+    if task_id != '':
+        user_id_work = message.from_user.id
 
-    if soglas is False:
-        await bot.send_photo(
-                            chat_id=message.chat.id,
-                            photo=FSInputFile("bot/images/kross.jpg"),
-                            caption="Меню: ",
-                            reply_markup=await menu_keyboard()
-        )
+        if await check_worker(user_id_work) is None:
+            await message.answer(text="❌Вы не исполнитель")
+            return 
+        
+        ts = await get_task(task_id)
+
+        if ts.status == 'activity':
+            user_id_work = message.from_user.id
+            await message.answer(text=open_task(ts),
+                                 reply_markup= await accept_work(task_id, user_id_work))
+            
     else:
-        await message.answer(
-            text="Для использования бота необходимо согласиться с общими условиями",
-            reply_markup=await menu_rules()
-        )
+
+        if reg is False:
+            await registration_user(message.from_user.id, dict_user)
+
+        soglas = await get_soglashenie(message.from_user.id)
+
+        if soglas is False:
+            user_id_work = message.from_user.id
+            await bot.send_photo(
+                                chat_id=message.chat.id,
+                                photo=FSInputFile("bot/images/kross.jpg"),
+                                caption="Меню: ",
+                                reply_markup=await menu_keyboard(message.chat.id, user_id_work)
+            )
+
+        else:
+            await message.answer(
+                text="🔎Для использования бота необходимо согласиться с общими условиями",
+                reply_markup=await menu_rules()
+            )
 
 
 @router.callback_query(F.data == "true_rules")
@@ -61,25 +92,41 @@ async def true_rules(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         photo=FSInputFile("bot/images/kross.jpg"),
                         caption="Меню: ",
-                        reply_markup=await menu_keyboard()
+                        reply_markup=await menu_keyboard(call.message.chat.id, call.from_user.id)
     )
 
-    
+
     
 
 @router.callback_query(F.data == "profile")
 async def profile(call: CallbackQuery, bot: Bot):
 
-    await bot.edit_message_media(
+    if call.message.chat.id == config.ADMIN_ID[0]:
+        await bot.edit_message_media(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
                             media=FSInputFile(path="bot/images/kross.jpg"),
                             caption="Профиль: "
                         ),
-                        reply_markup=await menu_profile() 
-                    )
-    
+                        reply_markup=await menu_profile_adm(call.message.chat.id)
+                        )
+    else:
+                    
+        await bot.edit_message_media(
+                            chat_id=call.message.chat.id,
+                            message_id=call.message.message_id,
+                            media=InputMediaPhoto(
+                                media=FSInputFile(path="bot/images/kross.jpg"),
+                                caption="Профиль: "
+                            ),
+                            reply_markup=await menu_profile(call.message.chat.id) 
+                        )
+        
+
+@router.callback_query(F.data == "back_prof")  
+async def back_prof(call: CallbackQuery, bot: Bot):
+    await profile(call, bot)
 
  
 @router.callback_query(F.data == "back")
@@ -92,12 +139,12 @@ async def back(call: CallbackQuery, bot: Bot):
             media=FSInputFile(path="bot/images/kross.jpg"),
             caption="Меню: "
         ),
-        reply_markup=await menu_keyboard()
+        reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id)
     )
 
 
 @router.callback_query(F.data == "o_nas")
-async def profile(call: CallbackQuery, bot: Bot):
+async def profile_11(call: CallbackQuery, bot: Bot):
 
     await bot.edit_message_media(
         chat_id=call.message.chat.id,
@@ -121,10 +168,12 @@ async def rulex(call: CallbackQuery, bot: Bot):
         ),
         reply_markup=await menu_rules()
     )
+
+
     
 
 @router.callback_query(F.data == "qq")
-async def profile(call: CallbackQuery, bot: Bot):
+async def profile__1(call: CallbackQuery, bot: Bot):
 
     await call.answer(
                       text="Разработчики вас любят <3",
@@ -140,13 +189,68 @@ async def cancel_new_tas(call: CallbackQuery, bot: Bot, state: FSMContext):
                         chat_id=call.message.chat.id,
                         photo=FSInputFile("bot/images/kross.jpg"),
                         caption="Меню: ",
-                        reply_markup=await menu_keyboard() 
+                        reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id) 
                     )
     
     await state.clear()
 
+
+@router.callback_query(F.data.startswith("myorders_"))
+async def myorders(call: CallbackQuery, bot: Bot):
+
+    id_ = call.data.split("_")[1]
+
+    work = await get_tasks(id_)
+
+    await call.message.delete()
+
+    await call.message.answer(
+                             text=f"📝Мои заказы:",
+                             reply_markup=await menu_myorders(work, 0)
+                        )
+
     
-    
+@router.callback_query(F.data.startswith("next_"))
+async def next_page(call: CallbackQuery, bot: Bot):
+    page = int(call.data.split("_")[1])
+    page += 6
+    tasks = await get_tasks(call.message.chat.id)
+    work = list(tasks)
+    if len(work[page:]) == 0:
+        await call.answer('Это последняя страница', show_alert=True)
+    else:
+        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=menu_myorders(work, page))
+
+@router.callback_query(F.data.startswith("prev_"))
+async def prev_page(call: CallbackQuery, bot: Bot):
+    page = int(call.data.split("_")[1])
+    page -= 6
+    tasks = await get_tasks(call.message.chat.id)
+    work = list(tasks)
+    if len(work[page:page-6]) == 0:
+        await call.answer('Это первая страница', show_alert=True)
+    else:
+        await bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=menu_myorders(work, page))
+
+@router.callback_query(F.data.startswith("mytask_"))
+async def mytask__1(call: CallbackQuery, bot: Bot):
+
+    id_ = call.data.split("_")[1]
+
+    task = await get_task(id_)
+
+    await call.message.delete()
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="<- Назад", callback_data=f"back_prof")
+
+    await bot.send_photo(   
+                             chat_id=call.message.chat.id,
+                             photo=FSInputFile("bot/images/kross.jpg"),
+                             caption=desc_mytask(task),
+                             reply_markup= kb.as_markup(),
+                             parse_mode='html'
+                        )
 
 @router.callback_query(F.data == "new_task")
 
@@ -159,7 +263,7 @@ async def new_task(
     await call.message.delete()
 
     await call.message.answer(
-                             text="Выберите направление: ",
+                             text="⚙️Выберите направление: ",
                              reply_markup=await menu_new_task_1()
     )
 
@@ -177,7 +281,7 @@ async def new_task_1(
     await call.message.delete()
 
     await call.message.answer(
-                             text="Выберите подразделение: ",
+                             text="⚙️Выберите подразделение: ",
                              reply_markup=await menu_new_task_2()
                         )
     
@@ -199,7 +303,7 @@ async def new_task_2(
     await state.update_data(task_2='написание с нуля')
 
     await call.message.answer(
-                             text="Напиши минимальное описание заказа: ",
+                             text="✏️Напишите минимальное описание заказа: ",
                              reply_markup=await cancel_task()
                         )
 
@@ -209,7 +313,7 @@ async def new_task_2(
 @router.callback_query(F.data=="edit_script")
 async def new_task_2(call: CallbackQuery, bot: Bot, state: FSMContext):
 
-    await call.answer("Данная функция в разработке")
+    await call.answer("❌Данная функция в разработке")
 
 
 @router.message(New_task.min_tz)
@@ -225,7 +329,7 @@ async def new_task_3(msg: Message,
         await state.update_data(min_tz=msg.text)
 
         await msg.answer(
-                                    text="Напиши максимальное описание заказа: ",
+                                    text="✏️Напишите максимальное описание заказа: ",
                                     reply_markup=await cancel_task()
                                 )
                 
@@ -233,7 +337,7 @@ async def new_task_3(msg: Message,
 
     else:
         await msg.answer(
-                                text="Минимальное количество букв - 3: ",
+                                text="❌Минимальное количество букв - 3: ",
                                 reply_markup=await cancel_task()
                             )
         return
@@ -252,7 +356,7 @@ async def new_task_4(msg: Message,
         await msg.delete()
 
         await msg.answer(
-                                text="Напиши цену заказа: ",
+                                text="✏️Напишите цену заказа: ",
                                 reply_markup=await cancel_task()
                             )
 
@@ -263,7 +367,7 @@ async def new_task_4(msg: Message,
         await msg.delete()
 
         await msg.answer(
-                                text="Минимальное количество букв - 3: ",
+                                text="❌Минимальное количество букв - 3: ",
                                 reply_markup=await cancel_task()
                             )
         return
@@ -278,43 +382,74 @@ async def new_task_5(msg: Message,
 
     prices = msg.text
 
-    if int(prices) > 50:
-        await state.update_data(price=msg.text)
+    if not prices.isdigit():  # Проверка, что цена является числом
+        await msg.answer(
+            text="❌Цена должна быть числом: ",
+            reply_markup=await cancel_task()
+        )
+        return
+
+    elif int(prices) > 50:
+        await state.update_data(price=prices)  # Используйте prices, а не msg.text
         await state.update_data(user_id=msg.from_user.id)
+
+        # Отправка сообщения
+        sent_message = await msg.answer(
+            text="✈️Заказ отправлен на модерацию!"
+        )
+
+        task_id = str(sent_message.message_id)  # Получение message_id отправленного сообщения
+        await state.update_data(task_id=task_id)  # Сохранение message_id в state.data
 
         data = await state.get_data()
         user_id = msg.from_user.id
 
-        await add_task(user_id, data)
+        await add_task(task_id, user_id, data)
 
-        tasks = await get_task(user_id)
+        tasks = await get_task(data['task_id'])
 
+        await bot.send_message(chat_id=config.ADMIN_ID[0],
+                               text=new_application(tasks, data, user_id),
+                               reply_markup=await admin_repl(task_id))
 
-        texts = f'''
-        Новая заявка!\n\n
-        задание № {tasks.task_id}\n
-        заказчик: {user_id}\n\n
-        категория: {data["task_1"]}\n
-        подразделение: {data["task_2"]}\n
-        минимальное описание: {data["min_tz"]}\n
-        максимальное описание: {data["max_tz"]}\n\n
-        цена: {data["price"]}
-        '''
-
-        await msg.answer(
-                                text="Заказ отправлен на модерацию!"
-                            )
-        
-        await bot.send_message(chat_id=config.ADMIN_ID[0], text=texts, reply_markup=await admin_repl())
-
-        await state.set_state(New_task.chek)
+        await state.clear()
 
     else:
         await msg.answer(
-                                text="Минимальное количество букв - 3: ",
-                                reply_markup=await cancel_task()
-                            )
-        return  
+            text="❌Минимальное количество букв - 3: ",
+            reply_markup=await cancel_task()
+        )
+        return
+    
+
+@router.callback_query(F.data.startswith("acceptuser_"))
+async def accept_user_1(call: CallbackQuery, bot: Bot):
+    task_id, work_id = call.data.split("_")[1], call.data.split("_")[2]
+    task = await get_task(task_id)
+    await call.message.delete()
+    gr = await get_chats()
+
+    await edit_chats(work_id,
+                     call.from_user.id,
+                     task.task_id,
+                     gr.link
+                    )
+    
+    await edits_task_(task.task_id,
+                      work_id,
+                      gr.group_id)
+
+    await bot.send_message(chat_id=work_id,
+                           text="✔️Ваше задание принято\nПерейдите в чат для дальнейших действий",
+                           reply_markup=await get_chat(gr.link))
+    
+    await bot.send_message(chat_id=call.from_user.id,
+                           text="✔️Задание принято\nПерейдите в чат для дальнейших действий",
+                           reply_markup= await get_chat(gr.link))
+    
+
+
+
     
 
 

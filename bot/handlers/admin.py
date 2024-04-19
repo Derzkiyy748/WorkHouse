@@ -6,46 +6,83 @@ from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
-from keyboards.inline.menu import menu_keyboard, menu_profile, menu_o_nas, menu_rules, menu_new_task_1, menu_new_task_2, cancel_task
+from keyboards.inline.menu import  cancel_task, accept, finish_addchat
 from aiogram import Bot
 from aiogram.types.input_file import FSInputFile
-from database.requiests import edit_task, get_task
-from states.state import New_task
+from database.requiests import full_add_task, get_task, delete_task, add_chat
+
+from misc.message import (
+                            channel_task
+                        )
+
+from fliters.Fliter import Admin
+from states.state import AddChats
 
 
 router_admin = Router()
 
-@router_admin.callback_query(F.data == "yes_task", New_task.chek)
-async def yes_task(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+@router_admin.callback_query(F.data.startswith("yestask_"), Admin())
+async def yes_task(call: CallbackQuery, bot: Bot):
 
     await call.message.delete()
 
-    us = await state.get_data()
+    task_id = call.data.split("_")[1]
 
-    task = await get_task(us['user_id'])
+    task = await get_task(task_id)
 
-    await call.answer(text=f"Задание № {task.task_id} добавлено",
+    await full_add_task(task_id)
+
+    await call.answer(text=f"✔️Задание № {task.task_id} добавлено",
                       show_alert=True)
+    await bot.send_message(chat_id=task.user_id_task, text=f"✔️Ваше задание № {task.task_id} добавлено")
     
-    await state.clear()
+    await bot.send_message(chat_id=config.group_task, 
+                           text=channel_task(task), 
+                           reply_markup=await accept(str(task.task_id)), parse_mode='html')
+    
+    
 
-    await edit_task(us['user_id'])
-
-
-@router_admin.callback_query(F.data == 'no_task', New_task.chek)
-async def yes_task(call: CallbackQuery, bot: Bot, state: FSMContext):
+@router_admin.callback_query(F.data.startswith("notask_"), Admin())
+async def yes_task(call: CallbackQuery, bot: Bot):
 
     await call.message.delete()
 
-    us = await state.get_data()
+    task_id = call.data.split("_")[1]
 
-    task = await get_task(us['user_id'])
+    task = await get_task(task_id)
 
-    await call.answer(text=f"Задание № {task.task_id} удалено",
+    await call.answer(text=f"❌Задание № {task.task_id} удалено",
                       show_alert=True)
     
+    await bot.send_message(chat_id=task.user_id_task, text=f"❌ Ваше задание № {task.task_id} удалено\nК сожалению, оно не прошло модерацию..")
+    
+    await delete_task(task_id)
+
+
+@router_admin.callback_query(F.data == 'add_chat')
+async def add_chat_1(call: CallbackQuery, state: FSMContext):
+    await call.message.answer(text="Введите ID чата и ссылку приглашения\nформат:\nid:ссылка", reply_markup=await finish_addchat())
+    await state.set_state(AddChats.add_chats)
+
+
+@router_admin.message(AddChats.add_chats)
+async def add_chat_2(message: Message, state: FSMContext):
+    dat = message.text.split("|")
+    id_ = dat[0]
+    link = dat[1]
+    await add_chat(id_, link)
+    await message.answer(text="Чат добавлен")
+    return
+
+@router_admin.message(F.text == 'finish')
+async def finish_addchat_1(message: Message, state: FSMContext):
+    await message.answer(text="Загрузка чатов завершена!")
     await state.clear()
 
+
+
+    
 
 
 

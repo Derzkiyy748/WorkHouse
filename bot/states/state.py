@@ -7,6 +7,9 @@ class New_task(StatesGroup):
     min_tz = State()
     max_tz = State()
     price = State()
-    chek = State()
+
+class AddChats(StatesGroup):
+    add_chats = State()
+    finish = State()
     
 

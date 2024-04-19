@@ -1,9 +1,11 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from database.requiests import check_worker, get_tasks
+import config
 
 
 
-async def menu_keyboard():
+async def menu_keyboard(message_id: int, worker_id: int):
     kb = [
         [
             InlineKeyboardButton(text="💎Сделать заказ", callback_data="new_task")
@@ -14,21 +16,30 @@ async def menu_keyboard():
         ],
         [
             InlineKeyboardButton(text="💎Профиль", callback_data="profile")
-        ],
-        [
-            InlineKeyboardButton(text="🏘️Устроиться🏘️", callback_data="something")
         ]
     ]
+    is_worker = await check_worker(worker_id)
+    if not is_worker:
+        kb.append([
+            InlineKeyboardButton(text="🏘️Устроиться🏘️", callback_data="something")
+        ])
+    else:
+        kb.append([
+            InlineKeyboardButton(text="💎Рабочий", callback_data="worker")
+        ])
+    if message_id == config.ADMIN_ID[0]:
+        kb.append([
+            InlineKeyboardButton(text="💎Админ-панель", callback_data="admin")
+        ])
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
 
-async def menu_profile():
+
+async def menu_profile(user_id):
     kb = [
         [
-            InlineKeyboardButton(text="📩Мои заказы", callback_data="my_orders"),
-        
-            InlineKeyboardButton(text="📩Мои чаты", callback_data="my_chats")
+            InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myorders_{user_id}"),
         ],
         [
             InlineKeyboardButton(text="<- Назад", callback_data="back")
@@ -36,6 +47,50 @@ async def menu_profile():
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
+
+async def menu_profile_adm(user_id):
+    kb = [
+        [
+            InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myorders_{user_id}"),
+        
+            InlineKeyboardButton(text="📩Мои чаты", callback_data=f"mychats_{user_id}")
+        ],
+        [
+            InlineKeyboardButton(text="Добавить чат", callback_data='add_chat')
+        ],
+        [
+            InlineKeyboardButton(text="<- Назад", callback_data="back")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+
+async def menu_myorders(data, page: int):
+    kb = InlineKeyboardBuilder()
+    # Convert SQLAlchemy result object to a list
+    data_list = list(data)
+    
+    start_index = page * 6
+    end_index = min(start_index + 6, len(data_list))  # Ensure we don't exceed the length of the data
+    
+    for i in data_list[start_index:end_index]:
+        kb.add(InlineKeyboardButton(text=f'📚 {i.task_id} | {i.status}', callback_data=f'mytask_{i.task_id}'))
+    
+    # Add navigation buttons and page number
+    kb.row(
+        InlineKeyboardButton(text='<-', callback_data=f'prev_{page}'),
+        InlineKeyboardButton(text=f'{page + 1}/{(len(data_list) + 5) // 6}', callback_data='sklfjsda'),  # Assuming 6 tasks per page
+        InlineKeyboardButton(text='->', callback_data=f'next_{page}')
+    )
+    
+    return kb.as_markup()
+
+
+
+
+
+
 
 
 async def menu_o_nas():
@@ -102,23 +157,70 @@ async def cancel_task():
     return keyboard
 
 
-async def admin_repl():
+async def admin_repl(task_id):
     kb = [
 
         [
-            InlineKeyboardButton(text="Принять", callback_data="yes_task"),
-            InlineKeyboardButton(text="Отклонить", callback_data="no_task")
+            InlineKeyboardButton(text="Принять", callback_data=f"yestask_{task_id}"),
+            InlineKeyboardButton(text="Отклонить", callback_data=f"notask_{task_id}")
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
-async def play():
+
+
+async def accept(task_id):
     kb = [
         [
-            InlineKeyboardButton(text="Жми", web_app=...)
+            InlineKeyboardButton(text="Взять задание", url=f'https://t.me/Zxcdin_bot?start={str(task_id)}')
         ]
     ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+
+async def accept_work(task_id, work_id):
+    kb = [
+        [
+            InlineKeyboardButton(text="Подтвердить", callback_data=f'acceptwork_{task_id}_{work_id}'),
+            InlineKeyboardButton(text="отменить", callback_data="cancel_task")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+
+async def accept_user(task_id, user_id, work_id):
+    kb = [
+        [
+            InlineKeyboardButton(text="Подтвердить", callback_data=f'acceptuser_{task_id}_{work_id}'),
+            InlineKeyboardButton(text="отменить", callback_data="cancel_task")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+
+async def finish_addchat():
+    kb = [
+        [
+            KeyboardButton(text="Завершить")
+        ]
+    ]
+    keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    return keyboard
+
+
+async def get_chat(chat_link):
+    kb = [
+        [
+            InlineKeyboardButton(text="Зайди в чат", url = f'{chat_link}')
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
 
 
 
