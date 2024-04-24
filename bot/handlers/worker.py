@@ -17,7 +17,8 @@ from aiogram import Bot
 from aiogram.types.input_file import FSInputFile
 from database.requiests import (get_task, finish_task_work,
                                 get_worker, get_group_work,
-                                get_tasks_work, activity_task_work)
+                                get_tasks_work, activity_task_work,
+                                count_activ_tasks_work, count_finish_tasks_work)
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -44,13 +45,16 @@ async def worker(call: CallbackQuery, bot: Bot):
 @router_worker.callback_query(F.data == 'profile_worker')
 async def profile_worker_1(call: CallbackQuery, bot: Bot):
 
+    ts_1 = await count_activ_tasks_work(call.from_user.id)
+    ts_2 = await count_finish_tasks_work(call.from_user.id)
     work = await get_worker(call.from_user.id)
     await bot.edit_message_media(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
                             media=FSInputFile(path="bot/images/kross.jpg"),
-                            caption=profile_workers(work)
+                            caption=profile_workers(work, ts_1, ts_2),
+                            parse_mode="html"
                         ),
                         reply_markup=await profile_worker(call.from_user.id)
                         )
@@ -93,7 +97,8 @@ async def accept_wok(call: CallbackQuery, bot: Bot):
 
     await bot.send_message(chat_id=task.user_id_task, 
                            text=open_task_user(task, work), 
-                           reply_markup=await accept_user(task_id, task.user_id_task, call.from_user.id))
+                           reply_markup=await accept_user(task_id, task.user_id_task, call.from_user.id),
+                           parse_mode='html')
 
 @router_worker.callback_query(F.data == 'main_worker_back')
 async def main_worker_back(call: CallbackQuery, bot: Bot):
@@ -103,7 +108,8 @@ async def main_worker_back(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         photo=FSInputFile(path="bot/images/kross.jpg"),
                         caption=profile_workers(work),       
-                        reply_markup=await profile_worker(call.from_user.id)
+                        reply_markup=await profile_worker(call.from_user.id),
+                        parse_mode='html'
                         )
     
 
@@ -151,7 +157,7 @@ async def activetasks_worker(call: CallbackQuery, bot: Bot):
                              reply_markup=await activity_task_worker(task, 0)
                         )
     
-@router_worker.callback_query(F.data == "back_prof_worker")
+@router_worker.callback_query(F.data.startswith("backprofworker_"))
 async def back_prof_worker(call: CallbackQuery, bot: Bot):
     await myorders_worker(call, bot)
     
@@ -163,6 +169,8 @@ async def mytask_worker_1(call: CallbackQuery, bot: Bot):
 
     task = await get_tasks_work(call.message.chat.id)
 
+    worker_id = call.message.chat.id
+
     group = await get_group_work(id_)
 
     await call.message.delete()
@@ -170,7 +178,7 @@ async def mytask_worker_1(call: CallbackQuery, bot: Bot):
 
     kb = InlineKeyboardBuilder()
     kb.button(text='Чат заказа', url=group.link)
-    kb.button(text="<- Назад", callback_data=f"back_prof_worker")
+    kb.button(text="<- Назад", callback_data=f"backprofworker_{worker_id}")
 
 
     await bot.send_photo(   

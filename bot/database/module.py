@@ -25,6 +25,7 @@ class User(Base):
     __tablename__ = "users"
     user_id: Mapped[int] = mapped_column(primary_key=True)
     name = mapped_column(String(30))
+    username: Mapped[str] = mapped_column(default=" ")
     balance: Mapped[int] = mapped_column(default=0)
     registration: Mapped[int] = mapped_column(default=0)
     ban: Mapped[int] = mapped_column(default=0)

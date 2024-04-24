@@ -56,7 +56,7 @@ async def user_task_(user_id):
             InlineKeyboardButton(text='Активные', callback_data=f'activetasksuser_{user_id}')
         ],
         [
-            InlineKeyboardButton(text='<- Назад', callback_data='main_worker')
+            InlineKeyboardButton(text='<- Назад', callback_data='profile')
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)

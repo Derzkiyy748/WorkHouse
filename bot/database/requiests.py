@@ -2,10 +2,12 @@ import datetime
 from datetime import datetime
 from datetime import timedelta
 from datetime import datetime as dt
+from sqlalchemy.sql import text
 
 from database.module import User, async_session, Task, Worker, Group
-from sqlalchemy import func, select, update, delete, insert
+from sqlalchemy import func, select, update, delete, insert, table, column
 from sqlalchemy.orm import selectinload
+
 from typing import Tuple, Union
 
 
@@ -18,6 +20,15 @@ async def get_user(user_id: int) -> Union[User, None]:
             return True
         else:
             return False
+        
+async def get_usere(user_id: int):
+    async with async_session() as session:
+        res = await session.execute(select(User)
+                                    .where(User.user_id == user_id)
+                                    .options(selectinload('*')))
+        r = res.scalar()
+        return r
+
 
 async def registration_user(
                             user_id: int,
@@ -36,6 +47,7 @@ async def registration_user(
                 user = User(
                     user_id=user_id,
                     name=dict_user['name'],
+                    username=dict_user['username'],
                     balance=dict_user['balance'],
                     registration=dict_user['reg'],
                     ban=dict_user['ban'],
@@ -153,12 +165,54 @@ async def get_tasks(user_id: int):
 async def activ_get_task(user_id: int):
     async with async_session() as session:
         res = await session.scalars(
-                                    select(Task)
+                                    select(func.count())
                                     .where(Task.user_id_task == user_id,
                                            Task.status=='активный')
                                         )
 
         return res
+    
+async def count_activ_tasks(user_id: int):
+    async with async_session() as session:
+
+        count = await session.execute(
+                                select(Task.task_id)
+                                .where(Task.user_id_task == user_id, Task.status == 'активный')
+                            )
+    ts = count.scalars().all()
+    return len([item for item in ts])
+
+async def count_finish_tasks(user_id: int):
+    async with async_session() as session:
+
+        count = await session.execute(
+                                      select(Task.task_id)
+                                      .where(Task.user_id_task == user_id,
+                                             Task.status == 'завершенный'))
+
+    ts = count.scalars().all()
+    return len([item for item in ts])
+    
+
+
+async def count_activ_tasks_work(worker_id: int):
+    async with async_session() as session:
+
+        count = await session.execute(select(Task).where(Task.worker_id_task == worker_id,
+                                                 Task.status == 'активный'))
+
+    ts = count.scalars().all()
+    return len([item for item in ts])
+
+async def count_finish_tasks_work(worker_id: int):
+    async with async_session() as session:
+
+        count = await session.execute(select(Task).where(Task.worker_id_task == worker_id,
+                                                 Task.status == 'завершенный'))
+    ts = count.scalars().all()
+    return len([item for item in ts])
+
+
     
 async def finish_get_task(user_id: int):
     async with async_session() as session:

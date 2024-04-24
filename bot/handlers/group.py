@@ -22,8 +22,16 @@ async def new_member(message: Message, bot: Bot):
 
 @router_group.message(F.text == "/menu", F.chat.type != "private")
 async def menu_group_1(message: Message, bot: Bot):
-    await message.answer('📋 Меню', reply_markup=await menu_group())
 
+    users = await bot.get_chat_member_count(message.chat.id)
+    if users <= 4:
+        await message.reply('🤝 <b>Дождитесь другого участника.</b>\n'
+                            'ℹ️ После его присоединения вам станет доступна команда /menu')
+    else:
+        await message.answer('📋 Меню', reply_markup=await menu_group())
+
+    
+    
 @router_group.callback_query(F.data == "task_info")
 async def task_info(call: CallbackQuery, bot: Bot):
     ps = await get_chatts(call.message.chat.id)

@@ -15,13 +15,13 @@ from keyboards.inline.menu import (admin_repl, finish_task_user, menu_keyboard, 
                                    get_chat, activity_task_user,
                                    user_task_)
 
-from database.requiests import (registration_user, get_soglashenie, set_soglashenie, 
+from database.requiests import (count_finish_tasks, registration_user, get_soglashenie, set_soglashenie, 
                                 get_user, add_task, activ_get_task, finish_get_task,
                                 check_worker, get_chats, edit_chats, get_tasks, edits_task_,
-                                get_task)
+                                get_task, get_usere, count_activ_tasks)
 
 from misc.message import (
-                            open_task, new_application, desc_mytask, main_text
+                            open_task, new_application, desc_mytask, main_text, profile_user
                         )
 from states.state import New_task
 from handlers.admin import yes_task
@@ -35,6 +35,7 @@ router = Router()
 async def start(message: Message, bot: Bot, state: FSMContext):
     dict_user = {
                 'name': message.from_user.first_name,
+                'username': message.from_user.username,
                 'balance': 0,
                 'ban': False,
                 'mode': "user",
@@ -60,7 +61,8 @@ async def start(message: Message, bot: Bot, state: FSMContext):
         if ts.status == 'activity':
             user_id_work = message.from_user.id
             await message.answer(text=open_task(ts),
-                                 reply_markup= await accept_work(task_id, user_id_work))
+                                 reply_markup= await accept_work(task_id, user_id_work),
+                                 parse_mode='html')
             
     else:
 
@@ -75,7 +77,8 @@ async def start(message: Message, bot: Bot, state: FSMContext):
                                 chat_id=message.chat.id,
                                 photo=FSInputFile("bot/images/main.jpg"),
                                 caption=main_text(),
-                                reply_markup=await menu_keyboard(message.chat.id, user_id_work)
+                                reply_markup=await menu_keyboard(message.chat.id, user_id_work),
+                                parse_mode='html'
             )
 
         else:
@@ -94,7 +97,8 @@ async def true_rules(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         photo=FSInputFile("bot/images/kross.jpg"),
                         caption=main_text(),
-                        reply_markup=await menu_keyboard(call.message.chat.id, call.from_user.id)
+                        reply_markup=await menu_keyboard(call.message.chat.id, call.from_user.id),
+                        parse_mode='html'
     )
 
 
@@ -104,12 +108,16 @@ async def true_rules(call: CallbackQuery, bot: Bot):
 async def profile(call: CallbackQuery, bot: Bot):
 
     if call.message.chat.id == config.ADMIN_ID[0]:
+        task_1 = await count_activ_tasks(call.message.chat.id)
+        task_2 = await count_finish_tasks(call.message.chat.id)
+        user = await get_usere(call.message.chat.id)
         await bot.edit_message_media(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
                             media=FSInputFile(path="bot/images/kross.jpg"),
-                            caption="Профиль: "
+                            caption=profile_user(user, task_1, task_2),
+                            parse_mode='html'
                         ),
                         reply_markup=await menu_profile(call.message.chat.id)
                         )
@@ -126,7 +134,7 @@ async def profile(call: CallbackQuery, bot: Bot):
                         )
         
 
-@router.callback_query(F.data == "back_prof")  
+@router.callback_query(F.data.startswith("backprof_"))
 async def back_prof(call: CallbackQuery, bot: Bot):
     await myorders(call, bot)
 
@@ -139,7 +147,8 @@ async def back(call: CallbackQuery, bot: Bot):
         message_id=call.message.message_id,
         media=InputMediaPhoto(
             media=FSInputFile(path="bot/images/main.jpg"),
-            caption=main_text()
+            caption=main_text(),
+            parse_mode='html'
         ),
         reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id)
     )
@@ -191,7 +200,8 @@ async def cancel_new_tas(call: CallbackQuery, bot: Bot, state: FSMContext):
                         chat_id=call.message.chat.id,
                         photo=FSInputFile("bot/images/main.jpg"),
                         caption=main_text(),
-                        reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id) 
+                        reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id),
+                        parse_mode='html'
                     )
     
     await state.clear()
@@ -274,10 +284,12 @@ async def mytask__1(call: CallbackQuery, bot: Bot):
 
     task = await get_task(id_)
 
+    user_id = task.user_id_task
+
     await call.message.delete()
 
     kb = InlineKeyboardBuilder()
-    kb.button(text="<- Назад", callback_data=f"back_prof")
+    kb.button(text="<- Назад", callback_data=f"backprof_{user_id}")
 
     await bot.send_photo(   
                              chat_id=call.message.chat.id,
