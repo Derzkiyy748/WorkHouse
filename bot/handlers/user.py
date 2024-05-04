@@ -1,5 +1,6 @@
 import asyncio
 import time
+from keyboards.inline.admin import new_worker_add
 import config
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -9,26 +10,33 @@ from aiogram import types, Router, F, Bot
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
-from keyboards.inline.menu import (admin_repl, finish_task_user, menu_keyboard, menu_profile, 
+from keyboards.inline.menu import (admin_repl, finish_task_user, go_something, menu_keyboard, menu_profile, 
                                    menu_o_nas, menu_rules, menu_new_task_1, 
                                    menu_new_task_2, cancel_task, accept_work, 
                                    get_chat, activity_task_user,
-                                   user_task_)
+                                   user_task_, reviews_menu, create_skill_keyboard)
 
 from database.requiests import (count_finish_tasks, registration_user, get_soglashenie, set_soglashenie, 
                                 get_user, add_task, activ_get_task, finish_get_task,
                                 check_worker, get_chats, edit_chats, get_tasks, edits_task_,
-                                get_task, get_usere, count_activ_tasks)
+                                get_task, get_usere, count_activ_tasks, get_reviews)
 
 from misc.message import (
-                            open_task, new_application, desc_mytask, main_text, profile_user
+                            new_worker, open_task, new_application, desc_mytask, main_text, profile_user
                         )
-from states.state import New_task
-from handlers.admin import yes_task
+from states.state import New_task, New_worker, Rew
 
 
 
 router = Router()
+
+
+new_workerrr = {
+    "stack": None,
+    "bio": None,
+    "despt": None,
+    "username": None
+}
 
 
 @router.message(CommandStart())
@@ -58,7 +66,7 @@ async def start(message: Message, bot: Bot, state: FSMContext):
         
         ts = await get_task(task_id)
 
-        if ts.status == 'activity':
+        if ts.status == 'активный':
             user_id_work = message.from_user.id
             await message.answer(text=open_task(ts),
                                  reply_markup= await accept_work(task_id, user_id_work),
@@ -75,7 +83,7 @@ async def start(message: Message, bot: Bot, state: FSMContext):
             user_id_work = message.from_user.id
             await bot.send_photo(
                                 chat_id=message.chat.id,
-                                photo=FSInputFile("bot/images/main.jpg"),
+                                photo=FSInputFile("bot/images/bot/main.jpg"),
                                 caption=main_text(),
                                 reply_markup=await menu_keyboard(message.chat.id, user_id_work),
                                 parse_mode='html'
@@ -95,7 +103,7 @@ async def true_rules(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(
                         chat_id=call.message.chat.id,
-                        photo=FSInputFile("bot/images/kross.jpg"),
+                        photo=FSInputFile("bot/images/bot/main.jpg"),
                         caption=main_text(),
                         reply_markup=await menu_keyboard(call.message.chat.id, call.from_user.id),
                         parse_mode='html'
@@ -115,7 +123,7 @@ async def profile(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
-                            media=FSInputFile(path="bot/images/kross.jpg"),
+                            media=FSInputFile(path="bot/images/bot/main.jpg"),
                             caption=profile_user(user, task_1, task_2),
                             parse_mode='html'
                         ),
@@ -127,7 +135,7 @@ async def profile(call: CallbackQuery, bot: Bot):
                             chat_id=call.message.chat.id,
                             message_id=call.message.message_id,
                             media=InputMediaPhoto(
-                                media=FSInputFile(path="bot/images/kross.jpg"),
+                                media=FSInputFile(path="bot/images/bot/main.jpg"),
                                 caption="Профиль: "
                             ),
                             reply_markup=await menu_profile(call.message.chat.id) 
@@ -146,7 +154,7 @@ async def back(call: CallbackQuery, bot: Bot):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         media=InputMediaPhoto(
-            media=FSInputFile(path="bot/images/main.jpg"),
+            media=FSInputFile(path="bot/images/bot/main.jpg"),
             caption=main_text(),
             parse_mode='html'
         ),
@@ -161,7 +169,7 @@ async def profile_11(call: CallbackQuery, bot: Bot):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         media=InputMediaPhoto(
-            media=FSInputFile(path="bot/images/kross.jpg"),
+            media=FSInputFile(path="bot/images/bot/main.jpg"),
             caption="Мы лучшие в своем деле!"
         ),
         reply_markup=await menu_o_nas()
@@ -174,7 +182,7 @@ async def rulex(call: CallbackQuery, bot: Bot):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         media=InputMediaPhoto(
-            media=FSInputFile(path="bot/images/kross.jpg"),
+            media=FSInputFile(path="bot/images/bot/main.jpg"),
             caption="Условия: "
         ),
         reply_markup=await menu_rules()
@@ -198,7 +206,7 @@ async def cancel_new_tas(call: CallbackQuery, bot: Bot, state: FSMContext):
 
     await bot.send_photo(
                         chat_id=call.message.chat.id,
-                        photo=FSInputFile("bot/images/main.jpg"),
+                        photo=FSInputFile("bot/images/bot/main.jpg"),
                         caption=main_text(),
                         reply_markup=await menu_keyboard(call.from_user.id, call.from_user.id),
                         parse_mode='html'
@@ -216,7 +224,7 @@ async def myorders(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(   
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=f"Выберите тип заказа: ",
                              reply_markup=await user_task_(id_)
                         )
@@ -233,7 +241,7 @@ async def finishtask(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption='Завершенные задачи: ',
                              reply_markup=await finish_task_user(task, 0)
                         )
@@ -249,7 +257,7 @@ async def activetask(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption='Активные задачи: ',
                              reply_markup=await activity_task_user(task, 0)
                         )
@@ -293,7 +301,7 @@ async def mytask__1(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(   
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=desc_mytask(task),
                              reply_markup= kb.as_markup(),
                              parse_mode='html'
@@ -365,7 +373,7 @@ async def new_task_2(
 @router.callback_query(F.data=="edit_script")
 async def new_task_2(call: CallbackQuery, bot: Bot, state: FSMContext):
 
-    await call.answer("❌Данная функция в разработке")
+    await call.answer("❌Данная функция в разработке", show_alert=True)
 
 
 @router.message(New_task.min_tz)
@@ -490,6 +498,9 @@ async def accept_user_1(call: CallbackQuery, bot: Bot):
     await edits_task_(task.task_id,
                       work_id,
                       gr.group_id)
+    
+    await call.message.delete(chat_id=config.group_task,
+                              message_id=task.task_id)
 
     await bot.send_message(chat_id=work_id,
                            text="✔️Ваше задание принято\nПерейдите в чат для дальнейших действий",
@@ -501,8 +512,140 @@ async def accept_user_1(call: CallbackQuery, bot: Bot):
     
 
 
+@router.callback_query(F.data == "yes_rev")
+async def yes_rev(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await call.message.delete()
+
+    await call.message.answer(text="Поставьте, пожалуйста, оценку", reply_markup=await reviews_menu())
+
+    await state.set_state(Rew.star)
+
+
+@router.callback_query(F.data == "no_rev")
+async def yes_rev(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await call.message.delete()
+
+    await call.message.answer(text="Вы отказались..")
+
+    await state.set_state(Rew.star)
 
     
+@router.callback_query(F.data.startswith("star_"), Rew.star)
+async def star(call: CallbackQuery, bot: Bot, state: FSMContext):
+    star = int(call.data.split("_")[1])  # Convert to integer
+
+    st = "⭐️" * star  # Now that star is an integer, multiplication works
+    await state.update_data(star=st)
+
+    await bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text="Спасибо! Теперь напишите краткий отзыв о продавце:",
+        reply_markup=None
+    )
+
+    await state.set_state(Rew.decpt)
+
+    
+
+@router.message(F.text, Rew.decpt)
+async def decpt(msg: Message, bot: Bot, state: FSMContext):
+
+    decpt = msg.text
+
+    await msg.delete()
+
+    await state.update_data(desp=decpt)
+    data = await state.get_data()
+
+    await get_reviews(data["desp"], data["star"], msg.from_user.id)
+
+    await bot.send_message(chat_id=msg.chat.id,
+                           text="Спасибо за оценку!")
+    
+    await state.clear()
+
+@router.callback_query(F.data == "something")
+async def something(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await call.message.answer(text="Вы готовы начать собеседование?", reply_markup=await go_something())
+
+
+@router.callback_query(F.data == "go")
+async def select_skills(call: CallbackQuery, bot: Bot, state: FSMContext):
+    await call.message.delete()
+    await call.message.answer('Выберите интересующие вас навыки:', reply_markup=await create_skill_keyboard([]))
+    await state.set_state(New_worker.stack_1)
+
+@router.callback_query(F.data.in_(['SQL', 'Python', 'C++', 'Java', 'JavaScript', 'HTML/CSS', 'Data Science', 'Machine Learning', 'Web Development', 'Mobile Development']),
+                       New_worker.stack_1)
+async def toggle_skill(call: CallbackQuery, state: FSMContext, bot: Bot):
+    
+    # Get the selected skills list from the state
+    selected_skills = await state.get_data()
+    if selected_skills is None:
+        selected_skills = set()
+    else:
+        selected_skills = selected_skills.get('selected_skills', set())
+
+    skill = call.data
+
+    if skill in selected_skills:
+        selected_skills.remove(skill)
+    else:
+        selected_skills.add(skill)
+
+    # Update the selected skills in the state
+    await state.update_data(selected_skills=selected_skills)
+    new_workerrr["stack"] = selected_skills
+    new_workerrr["username"] = call.from_user.username
+    await state.update_data(username=call.from_user.username)
+
+    # Update the message with the new keyboard
+    await bot.edit_message_reply_markup(chat_id=call.message.chat.id,
+                                        message_id=call.message.message_id,
+                                        reply_markup=await create_skill_keyboard(selected_skills))
+    
+
+
+@router.callback_query(F.data == "continue")
+async def sdadads(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await bot.edit_message_text(chat_id=call.message.chat.id,
+                             message_id=call.message.message_id,
+                             text='<b>Расскажите о себе.</b>\n\n<i>Какие проекты вы выполняли, что оказалось самым сложным, вы работали в группе или один?</i>', parse_mode='html')
+    await state.set_state(New_worker.stack_2)
+
+
+@router.message(F.text, New_worker.stack_2)
+async def fsdf(msg: Message, bot: Bot, state: FSMContext):
+
+    bio = msg.text
+
+    await state.update_data(biograf=bio)
+    new_workerrr["bio"] = bio
+
+    await msg.answer(text="<b>Какие API вы знаете, где использовали?</b>", parse_mode='html')
+    await state.set_state(New_worker.stack_3)
+
+
+
+@router.message(F.text, New_worker.stack_3)
+async def fsdf(msg: Message, bot: Bot, state: FSMContext):
+
+    project = msg.text
+
+    await state.update_data(despt=project)
+    new_workerrr["despt"] = project
+
+    data = await state.get_data()
+
+    await bot.send_message(chat_id=config.ADMIN_ID[0],
+                           text=new_worker(data),
+                           reply_markup=await new_worker_add(msg.from_user.id))
+    await msg.answer(text="<b>Спасибо за прохождение собеседования!</b>\n\n<i>анкета отправлена на проверку</i>", parse_mode='html')
 
 
 

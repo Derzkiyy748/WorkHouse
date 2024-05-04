@@ -2,6 +2,7 @@ import asyncio
 import time
 import config
 
+from handlers.user import new_workerrr
 from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
 from aiogram.filters import Command, CommandStart
@@ -10,14 +11,14 @@ from keyboards.inline.menu import  cancel_task, accept
 from keyboards.inline.admin import main_menu_admin, finish_addchat
 from aiogram import Bot
 from aiogram.types.input_file import FSInputFile
-from database.requiests import full_add_task, get_task, delete_task, add_chat
+from database.requiests import add_worker, full_add_task, get_task, delete_task, add_chat, get_usere
 
 from misc.message import (
                             channel_task
                         )
 
 from fliters.Fliter import Admin
-from states.state import AddChats
+from states.state import AddChats, New_worker
 
 
 router_admin = Router()
@@ -29,7 +30,7 @@ async def admin(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
-                            media=FSInputFile(path="bot/images/kross.jpg"),
+                            media=FSInputFile(path="bot/images/bot/main.jpg"),
                             caption="Админ-панель"
                         ),
                         reply_markup= await main_menu_admin()
@@ -98,6 +99,28 @@ async def add_chat_2(message: Message, state: FSMContext):
 async def finish_addchat_1(message: Message, state: FSMContext):
     await message.answer(text="Загрузка чатов завершена!", reply_markup=ReplyKeyboardRemove())
     await state.clear()
+
+
+@router_admin.callback_query(F.data.startswith("addwork_"))
+async def add_workerr(call: CallbackQuery, bot: Bot, state: FSMContext):
+
+    worker_id = call.data.split("_")[1]
+    user = await get_usere(worker_id)
+
+    worker_skills_str = ', '.join(new_workerrr["stack"])
+
+    await add_worker(worker_id,
+                     new_workerrr["username"],
+                     "Пусто",
+                     0,
+                     worker_skills_str
+                     )
+    
+    await call.message.delete()
+    await call.answer(text=f"Вы успешно добавили воркера: {user.username}", show_alert=True)
+
+    await state.clear()
+
 
 
 

@@ -9,7 +9,7 @@ from handlers.user import router
 from handlers.admin import router_admin
 from handlers.worker import router_worker
 from handlers.group import router_group
-from database.module import asyn_main
+from database.module import asyn_main                                                                                                            #// БРАТ, ПОДПИШИСЬ //#
 #----------------------------------#
 #----------------------------------#
 
@@ -19,7 +19,6 @@ from database.module import asyn_main
 
 async def main() -> None:
 
-    await asyn_main()
     
     bot = Bot(config.TOKEN)  # Создание объекта бота с использованием токена из конфига
     dp = Dispatcher()  # Создание объекта диспетчера

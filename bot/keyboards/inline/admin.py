@@ -21,3 +21,15 @@ async def finish_addchat():
     ]
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     return keyboard
+
+
+async def new_worker_add(worker_id: int):
+    kb = [
+        [
+            InlineKeyboardButton(text="Принять", callback_data=f"addwork_{worker_id}")
+        ],
+        [
+            InlineKeyboardButton(text="Отклонить", callback_data=f"nowork_{worker_id}")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)

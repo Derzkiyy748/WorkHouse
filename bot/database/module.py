@@ -67,6 +67,14 @@ class Worker(Base):
     worker_status: Mapped[int] = mapped_column(default=0)
     worker_rate: Mapped[int] = mapped_column(default=0)
 
+
+class Review(Base):
+    __tablename__ = "reviews"
+    review_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    stars: Mapped[str] = mapped_column(default=" ")
+    rev_user_id: Mapped[int] = mapped_column(default=0)
+    description: Mapped[str] = mapped_column(default=" ")
+
  
 
 

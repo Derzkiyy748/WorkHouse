@@ -34,9 +34,16 @@ async def menu_keyboard(message_id: int, worker_id: int):
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     return keyboard
 
+async def go_something():
+    kb = [
+        [
+            InlineKeyboardButton(text='Даа', callback_data="go")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
 
-
-async def menu_profile(user_id):
+async def menu_profile(user_id: int):
     kb = [
         [
             InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myordersuser_{user_id}"),
@@ -49,7 +56,7 @@ async def menu_profile(user_id):
     return keyboard
 
 
-async def user_task_(user_id):
+async def user_task_(user_id: int):
     kb = [
         [
             InlineKeyboardButton(text='Завершенные', callback_data=f'finishtasksuser_{user_id}'),
@@ -240,7 +247,7 @@ async def accept_user(task_id, user_id, work_id):
 async def get_chat(chat_link):
     kb = [
         [
-            InlineKeyboardButton(text="Зайди в чат", url = f'{chat_link}')
+            InlineKeyboardButton(text="Зайдите в чат", url = f'{chat_link}')
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
@@ -248,4 +255,56 @@ async def get_chat(chat_link):
 
 
 
+async def neworker_stack_1():
+    kb = [
+        [
+            InlineKeyboardButton(text="Программирование", callback_data="programmist")
+        ],
+        [
+            InlineKeyboardButton(text="Дизайнер", callback_data="designer")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
 
+async def neworker_stack_2():
+    ...
+
+
+
+async def reviews_menu():
+    kb = [
+        [
+            InlineKeyboardButton(text="⭐️", callback_data="star_1")
+        ],
+        [
+            InlineKeyboardButton(text="⭐️⭐️", callback_data="star_2")
+        ],
+        [
+            InlineKeyboardButton(text="⭐️⭐️⭐️", callback_data="star_3")
+        ],
+        [
+            InlineKeyboardButton(text="⭐️⭐️⭐️⭐️", callback_data="star_4")
+        ],
+        [
+            InlineKeyboardButton(text="⭐️⭐️⭐️⭐️⭐️", callback_data="star_5")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+
+async def create_skill_keyboard(selected_skills):
+    skills = ['SQL', 'Python', 'C++', 'Java', 'JavaScript', 'HTML/CSS', 'SQLalchemy', 'MySQL', 'PostgreSQL']
+
+    kb = InlineKeyboardBuilder()
+    
+    for skill in skills:
+        button_text = f'✅{skill}' if skill in selected_skills else skill
+        kb.add(InlineKeyboardButton(text=button_text, callback_data=skill))
+    
+    kb.row(
+        InlineKeyboardButton(text='Отмена', callback_data='back'),
+        InlineKeyboardButton(text='Продолжить ->', callback_data='continue')
+    )
+    return kb.adjust(2).as_markup()

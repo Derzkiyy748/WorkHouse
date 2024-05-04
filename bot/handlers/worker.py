@@ -2,6 +2,7 @@ import asyncio
 import time
 import config
 
+from modules.rate import reviews
 from misc.message import profile_workers
 from aiogram.fsm.context import FSMContext
 from aiogram import types, Router, F
@@ -22,7 +23,6 @@ from database.requiests import (get_task, finish_task_work,
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from fliters.Fliter import Worker
 
 
 router_worker = Router()
@@ -34,16 +34,22 @@ async def worker(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
-                            media=FSInputFile(path="bot/images/kross.jpg"),
+                            media=FSInputFile(path="bot/images/bot/main.jpg"),
                             caption="Главное меню"
                         ),
                         reply_markup=await main_worker()
                         )
     
+@router_worker.callback_query(F.data == "setting_worker")
+async def setting_worker(call: CallbackQuery, bot: Bot):
+    await call.answer("❌Данная функция в разработке", show_alert=True)
+    
 
 
 @router_worker.callback_query(F.data == 'profile_worker')
 async def profile_worker_1(call: CallbackQuery, bot: Bot):
+
+    total_reviews, average_rating, rating_representation = await reviews(call.from_user.id)
 
     ts_1 = await count_activ_tasks_work(call.from_user.id)
     ts_2 = await count_finish_tasks_work(call.from_user.id)
@@ -52,8 +58,8 @@ async def profile_worker_1(call: CallbackQuery, bot: Bot):
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         media=InputMediaPhoto(
-                            media=FSInputFile(path="bot/images/kross.jpg"),
-                            caption=profile_workers(work, ts_1, ts_2),
+                            media=FSInputFile(path="bot/images/bot/main.jpg"),
+                            caption=profile_workers(work, ts_1, ts_2, rating_representation, total_reviews, average_rating),
                             parse_mode="html"
                         ),
                         reply_markup=await profile_worker(call.from_user.id)
@@ -70,7 +76,7 @@ async def main_worker_1(call: CallbackQuery, bot: Bot):
                     chat_id=call.message.chat.id,
                     message_id=call.message.message_id,
                     media=InputMediaPhoto(
-                        media=FSInputFile(path="bot/images/kross.jpg"),
+                        media=FSInputFile(path="bot/images/bot/main.jpg"),
                         caption="Главное меню"
                     ),
                     reply_markup=await main_worker()
@@ -83,20 +89,23 @@ async def rate_worker(call: CallbackQuery, bot: Bot):
 
     work = await get_worker(id_)
 
-    await call.answer(text=f"Ваш рейтинг: {work.worker_rate}", show_alert=True)
+    rating_representation, total_reviews, average_rating = await reviews(call.from_user.id)
+
+    await call.answer(text=f"Ваш рейтинг: {average_rating} ({rating_representation}) ({total_reviews})", show_alert=True)
 
 
 
 @router_worker.callback_query(F.data.startswith("acceptwork_"))
 async def accept_wok(call: CallbackQuery, bot: Bot):
     task_id, work_id  = call.data.split("_")[1], call.data.split("_")[2]
+    rating_representation, total_reviews, average_rating = await reviews(call.from_user.id)
     task = await get_task(task_id)
     work = await get_worker(work_id)
     await call.message.delete()
     await call.answer(text="✔️Задание принято", show_alert=True)
 
     await bot.send_message(chat_id=task.user_id_task, 
-                           text=open_task_user(task, work), 
+                           text=open_task_user(task, work, rating_representation, total_reviews, average_rating), 
                            reply_markup=await accept_user(task_id, task.user_id_task, call.from_user.id),
                            parse_mode='html')
 
@@ -106,7 +115,7 @@ async def main_worker_back(call: CallbackQuery, bot: Bot):
     work = await get_worker(call.from_user.id)
     await bot.send_photo(
                         chat_id=call.message.chat.id,
-                        photo=FSInputFile(path="bot/images/kross.jpg"),
+                        photo=FSInputFile(path="bot/images/bot/main.jpg"),
                         caption=profile_workers(work),       
                         reply_markup=await profile_worker(call.from_user.id),
                         parse_mode='html'
@@ -122,7 +131,7 @@ async def myorders_worker(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(   
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=f"Выберите тип заказа: ",
                              reply_markup=await worker_task(id_)
                         )
@@ -137,7 +146,7 @@ async def finishtasks_worker(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=f"Завершенные заказы",
                              reply_markup=await finish_task_worker(task, 0)
                         )
@@ -152,7 +161,7 @@ async def activetasks_worker(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=f"Активные заказы",
                              reply_markup=await activity_task_worker(task, 0)
                         )
@@ -183,7 +192,7 @@ async def mytask_worker_1(call: CallbackQuery, bot: Bot):
 
     await bot.send_photo(   
                              chat_id=call.message.chat.id,
-                             photo=FSInputFile("bot/images/kross.jpg"),
+                             photo=FSInputFile("bot/images/bot/main.jpg"),
                              caption=desc_mytask_worker(task),
                              reply_markup= kb.as_markup(),
                              parse_mode='html'

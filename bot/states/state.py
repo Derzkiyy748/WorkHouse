@@ -11,5 +11,18 @@ class New_task(StatesGroup):
 class AddChats(StatesGroup):
     add_chats = State()
     finish = State()
+
+class Up_price(StatesGroup):
+    up_price_1 = State()
+    up_price_2 = State()
+
+class New_worker(StatesGroup):
+    stack_1 = State()
+    stack_2 = State()
+    stack_3 = State()
+
+class Rew(StatesGroup):
+    star = State()
+    decpt = State()
     
 

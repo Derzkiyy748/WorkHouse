@@ -4,7 +4,7 @@ from datetime import timedelta
 from datetime import datetime as dt
 from sqlalchemy.sql import text
 
-from database.module import User, async_session, Task, Worker, Group
+from database.module import User, async_session, Task, Worker, Group, Review
 from sqlalchemy import func, select, update, delete, insert, table, column
 from sqlalchemy.orm import selectinload
 
@@ -61,6 +61,47 @@ async def registration_user(
 
             else:
                 return False
+
+
+async def finish_taskk(task_id: int):
+    async with async_session() as session:
+        await session.execute(
+                            update(Task)
+                            .where(Task.task_id == task_id)
+                            .values(status="завершенный")
+                        )
+        await session.commit()
+
+async def finish_taskk_2(user_id: int, money: int):
+     async with async_session() as session:
+        await session.execute(
+                            update(User)
+                            .where(User.user_id == user_id)
+                            .values(balance=User.balance - money)
+                        )
+        await session.commit()
+
+async def set_star(user_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(Review)
+            .where(Review.rev_user_id == user_id)
+            .options(selectinload('*'))
+        )
+        reviews = result.scalars().all()
+        return reviews
+    
+
+async def get_reviews(descp, star, user_id):
+    async with async_session() as session:
+
+        await session.execute(
+                    insert(Review)
+                    .values(description=descp,
+                            rev_user_id=user_id,
+                            stars=star)
+        )
+        await session.commit()
 
 
 async def get_soglashenie(
@@ -153,6 +194,25 @@ async def get_task(task_id: int):
         task = res.scalar()
 
         return task
+    
+async def get_task_group(chat_id: int):
+    async with async_session() as session:
+        res = await session.execute(
+                                    select(Task)
+                                    .where(Task.chat_id == chat_id,)
+                                    .options(selectinload('*')))
+        task = res.scalar()
+
+        return task
+    
+async def up_price(task_id: int, prices: int):
+    async with async_session() as session:
+        await session.execute(
+                                update(Task)
+                                .where(Task.task_id == task_id)
+                                .values(price=Task.price + prices)
+                            )
+        await session.commit()
     
 async def get_tasks(user_id: int):
     async with async_session() as session:
@@ -339,7 +399,24 @@ async def edit_chats(worker_id, user_id, task_id, link):
 
 
 
+async def add_worker(worker_id: int,
+                     username: str,
+                     descriptionn: str,
+                     balance: int,
+                     stack: str):
+    async with async_session() as session:
+        await session.execute(
+                    insert(Worker)
+                    .values(worker_id=worker_id,
+                            worker_description=descriptionn,
+                            worker_name=username,
+                            worker_balance=balance,
+                            worker_stack=stack,
+                            worker_rate=0,
+                            worker_status=" ")
+        )
 
+        await session.commit()
 
 
         
