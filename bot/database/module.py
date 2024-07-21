@@ -75,6 +75,15 @@ class Review(Base):
     rev_user_id: Mapped[int] = mapped_column(default=0)
     description: Mapped[str] = mapped_column(default=" ")
 
+
+class Payment(Base):
+    __tablename__ = "payments"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    type: Mapped[str] = mapped_column(default=" ")
+    user_id: Mapped[int] = mapped_column(default=0)
+    amount: Mapped[int] = mapped_column(default=0)
+    cheque: Mapped[str] = mapped_column(default=" ")
+
  
 
 

@@ -5,6 +5,9 @@ async def main_menu_admin():
     kb = [
         [
             InlineKeyboardButton(text="Добавить чат", callback_data="add_chat")
+        ], 
+        [
+            InlineKeyboardButton(text="<- Назад", callback_data="back")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)

@@ -419,4 +419,19 @@ async def add_worker(worker_id: int,
         await session.commit()
 
 
+async def paymount(amount, user_id):
+    """
+    param: amount: сумма пополнения
+    return: Обновляет баланс пользователя
+    """
+    async with async_session() as session:
+        await session.execute(
+            update(User)
+            .where(User.user_id == user_id)
+            .values(balance=User.balance + amount)
+        )
+        await session.commit()
+
+
+
         

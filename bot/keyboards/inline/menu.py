@@ -47,6 +47,7 @@ async def menu_profile(user_id: int):
     kb = [
         [
             InlineKeyboardButton(text="📩Мои заказы", callback_data=f"myordersuser_{user_id}"),
+            InlineKeyboardButton(text="Пополнить", callback_data=f"replenish_{user_id}")
         ],
         [
             InlineKeyboardButton(text="<- Назад", callback_data="back")
@@ -130,16 +131,9 @@ async def activity_task_user(data, page: int):
 
 
 
-
-
-
-
 async def menu_o_nas():
     kb = [[
-            InlineKeyboardButton(text="Разработчик", callback_data="qq")
-        ],
-        [
-            InlineKeyboardButton(text="@D3rzkiyy", url="http://t.me/D3rzkiyy")
+            InlineKeyboardButton(text="Разработчик+поддержка", url="http://t.me/D3rzkiyy")
         ],
         [
             InlineKeyboardButton(text="<- Назад", callback_data="back")
@@ -151,7 +145,22 @@ async def menu_o_nas():
 async def menu_rules():
     kb = [
         [
-            InlineKeyboardButton(text="✔️Согласиться", callback_data="true_rules")
+            InlineKeyboardButton(text="Тык", url=config.RULES)
+        ],
+        [
+            InlineKeyboardButton(text="<- Назад", callback_data="back")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+    return keyboard
+
+async def menu_ruless():
+    kb = [
+        [
+            InlineKeyboardButton(text="Тык", url=config.RULESS)
+        ],
+        [
+            InlineKeyboardButton(text="Принять", callback_data="true_rules")
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
@@ -214,7 +223,7 @@ async def admin_repl(task_id):
 async def accept(task_id):
     kb = [
         [
-            InlineKeyboardButton(text="Взять задание", url=f'https://t.me/Zxcdin_bot?start={str(task_id)}')
+            InlineKeyboardButton(text="Взять задание", url=f'https://t.me/WorkHouseBot_bot?start={str(task_id)}')
         ]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
@@ -308,3 +317,43 @@ async def create_skill_keyboard(selected_skills):
         InlineKeyboardButton(text='Продолжить ->', callback_data='continue')
     )
     return kb.adjust(2).as_markup()
+
+
+
+async def payments_vibor():
+    kb = [
+        [
+            InlineKeyboardButton(text="AioKassa", callback_data='aio_payment')
+        ],
+        [
+            InlineKeyboardButton(text="Админ-оплата", callback_data='admin_payment')
+        ],
+        [
+            InlineKeyboardButton(text="Отмена", callback_data='finish_payment')
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+
+async def payments_back():
+    kb = [
+        [
+            InlineKeyboardButton(text="Отмена", callback_data='finish_payment')
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+
+async def payments(payment_link):
+    kb = [
+        [
+            InlineKeyboardButton(text="Оплатить", url=payment_link)
+        ],
+        [
+            InlineKeyboardButton(text="Проверить", callback_data="check_payment")
+        ],
+        [
+            InlineKeyboardButton(text="Отмена", callback_data='finish_payment')
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)

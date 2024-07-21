@@ -3,6 +3,7 @@ import time
 from keyboards.inline.admin import new_worker_add
 import config
 
+from handlers.payment.create_link import create_link_payment, generate_order_number, check_aio_payment
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types.input_file import FSInputFile
 from aiogram.fsm.context import FSMContext
@@ -13,18 +14,19 @@ from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from keyboards.inline.menu import (admin_repl, finish_task_user, go_something, menu_keyboard, menu_profile, 
                                    menu_o_nas, menu_rules, menu_new_task_1, 
                                    menu_new_task_2, cancel_task, accept_work, 
-                                   get_chat, activity_task_user,
-                                   user_task_, reviews_menu, create_skill_keyboard)
+                                   get_chat, activity_task_user, menu_ruless, payments_back, payments_vibor,
+                                   user_task_, reviews_menu, create_skill_keyboard, payments)
 
 from database.requiests import (count_finish_tasks, registration_user, get_soglashenie, set_soglashenie, 
                                 get_user, add_task, activ_get_task, finish_get_task,
                                 check_worker, get_chats, edit_chats, get_tasks, edits_task_,
-                                get_task, get_usere, count_activ_tasks, get_reviews)
+                                get_task, get_usere, count_activ_tasks, get_reviews, paymount)
 
 from misc.message import (
-                            new_worker, open_task, new_application, desc_mytask, main_text, profile_user
+                            new_worker, open_task, new_application, desc_mytask, main_text, profile_user,
+                            payment_c
                         )
-from states.state import New_task, New_worker, Rew
+from states.state import New_task, New_worker, Payment, Rew
 
 
 
@@ -92,7 +94,7 @@ async def start(message: Message, bot: Bot, state: FSMContext):
         else:
             await message.answer(
                 text="🔎Для использования бота необходимо согласиться с общими условиями",
-                reply_markup=await menu_rules()
+                reply_markup=await menu_ruless()
             )
 
 
@@ -646,6 +648,140 @@ async def fsdf(msg: Message, bot: Bot, state: FSMContext):
                            text=new_worker(data),
                            reply_markup=await new_worker_add(msg.from_user.id))
     await msg.answer(text="<b>Спасибо за прохождение собеседования!</b>\n\n<i>анкета отправлена на проверку</i>", parse_mode='html')
+
+
+@router.callback_query(F.data=='finish_payment')
+async def fin(c: CallbackQuery, bot: Bot, state: FSMContext):
+    
+    state.clear()
+
+    await bot.send_photo(
+                                chat_id=c.message.chat.id,
+                                photo=FSInputFile("bot/images/bot/main.jpg"),
+                                caption=main_text(),
+                                reply_markup=await menu_keyboard(c.message.chat.id, c.message.from_user.id),
+                                parse_mode='html'
+            )
+
+
+
+@router.callback_query(F.data.startswith("replenish_"))
+async def payment_1(c: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await c.message.delete()
+
+    await c.message.answer(text="<b>Выверите способ пополнения</b>\n\n<i>пополнение через кассы от 500 рублей</i>",
+                           reply_markup=await payments_vibor(),
+                           parse_mode='html')
+    
+    await state.set_state(Payment.payment_1)
+
+@router.callback_query(F.data == 'admin_payment', Payment.payment_1)
+async def adm_pay(c: CallbackQuery, bot: Bot, state: FSMContext):
+
+    await c.answer(text="Данная функция в разработке!", show_alert=True)
+
+    '''
+    await c.message.delete()
+
+    await state.update_data(payment="admin_payment")
+
+    await c.message.answer(text="<b>Введите сумму пополнения: </b>", reply_markup=await payments_back(), parse_mode='html')
+
+    await state.set_state(Payment.payment_2)
+    '''
+
+amount = dict()
+
+'''
+@router.message(F.text, Payment.payment_2)
+async def amout(m: Message, bot: Bot, state: FSMContext):
+
+    await m.delete()
+
+    a = m.text
+
+    if not a.isdigit():  # Проверка, что цена является числом
+        await m.answer(
+            text="❌Цена должна быть числом: ",
+            reply_markup=await payments_back()
+        )
+        return
+
+    amount[m.chat.id] = int(a)
+
+    await bot.send_message(chat_id=config.ADMIN_ID[0],
+                           text=...)
+'''  
+
+
+@router.callback_query(F.data == "aio_payment", Payment.payment_1)
+async def payment_2(c: CallbackQuery, bot: Bot, state: FSMContext):
+    await c.message.delete()
+
+    await state.update_data(payment="aio_payment")
+
+    await c.message.answer(text="<b>Введите сумму пополнения: </b>", reply_markup=await payments_back(), parse_mode='html')
+
+    await state.set_state(Payment.payment_2)
+
+@router.message(F.text, Payment.payment_2)
+async def amout(m: Message, bot: Bot, state: FSMContext):
+
+    await m.delete()
+
+    a = m.text
+
+    if not a.isdigit():  # Проверка, что цена является числом
+        await m.answer(
+            text="❌Цена должна быть числом: ",
+            reply_markup=await payments_back()
+        )
+        return
+
+    await state.update_data(amount=int(a))
+
+    data = await state.get_data()
+
+    comment = await generate_order_number()
+
+    date = await create_link_payment(data['amount'], comment)
+
+    await state.update_data(form=date)
+
+    await m.answer(text="<b>Ваша оплата готова!</b>\n\n<i>Для оплаты перейдите по кнопке:</i>",
+                   reply_markup=await payments(date['url']),
+                   parse_mode='html')
+    
+    await state.set_state(Payment.payment_3)
+    
+
+@router.callback_query(F.data == 'check_payment', Payment.payment_3)
+async def ff(c: CallbackQuery, bot: Bot, state: FSMContext):
+
+    data_form = await state.get_data()
+
+    comment = data_form['form']
+
+    chek = await check_aio_payment(comment)
+
+    if chek == 200:
+        await c.message.delete()
+        await c.message.answer(text="<b>Спасибо за пополнение баланса в нашем проекте!</b>\n\n<i>Деньги зачислены на ваш счет</i>", parse_mode='html')
+        await bot.send_message(chat_id=config.group_payment,
+                               text=payment_c(data_form['payment'], comment['price']),
+                               parse_mode='html')
+        await paymount(comment['price'], c.message.chat.id)
+        await state.clear()
+        print(comment['price'], c.message.from_user.id)
+
+
+    else:
+        await c.message.answer(text="Вы еще не оплатили!")
+ 
+
+
+
 
 
 
